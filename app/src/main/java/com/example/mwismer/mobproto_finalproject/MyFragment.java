@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -19,8 +20,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.UUID;
 
 /**
  * Created by mwismer on 10/23/14.
@@ -70,8 +78,19 @@ public class MyFragment extends Fragment{
                 mScanning = false;
                 mBLEAdapter.stopLeScan(mBLECallback);
                 Log.d(TAG, "BLE Scan finished");
-                if (device != null) {
+                if (device == null) {
+                    Log.d(TAG, "No devices");
+                } else {
                     device.connectGatt(getActivity(), false, new BluetoothGattCallback() {
+                        private ArrayList<BluetoothGattCharacteristic> mCharacteristics = new ArrayList<BluetoothGattCharacteristic>();
+                        private ArrayList<UUID> mCharacteristicUUIDs = new ArrayList<UUID>();
+                        private ArrayList<BluetoothGattDescriptor> mDescriptors = new ArrayList<BluetoothGattDescriptor>();
+                        private ArrayList<UUID> mDescriptorUUIDs = new ArrayList<UUID>();
+                        private int indexToRead = 0;
+
+                        private HashMap<String, byte[]> characteristicMap = new HashMap<String, byte[]>();
+                        private HashMap<String, byte[]> descriptorMap = new HashMap<String, byte[]>();
+
                         @Override
                         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                             super.onConnectionStateChange(gatt, status, newState);
@@ -89,30 +108,89 @@ public class MyFragment extends Fragment{
                         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
                             super.onServicesDiscovered(gatt, status);
                             for (BluetoothGattService service: gatt.getServices()) {
-                                Log.d(TAG, service.toString() + "::" + service.getCharacteristics().toString());
+                                List<BluetoothGattCharacteristic> characteristicList = service.getCharacteristics();
+                                for (BluetoothGattCharacteristic characteristic: characteristicList) {
+                                    if (mCharacteristicUUIDs.indexOf(characteristic.getUuid()) == -1) {
+                                        mCharacteristics.add(characteristic);
+                                        mCharacteristicUUIDs.add(characteristic.getUuid());
+                                    }
+
+                                    List<BluetoothGattDescriptor> descriptorList = characteristic.getDescriptors();
+                                    for (BluetoothGattDescriptor descriptor: descriptorList) {
+                                        Log.d(TAG, descriptor.toString());
+                                        if (mDescriptorUUIDs.indexOf(descriptor.getUuid()) == -1) {
+                                            mDescriptors.add(descriptor);
+                                            mDescriptorUUIDs.add(descriptor.getUuid());
+                                        }
+                                    }
+                                }
+
+                                if (mCharacteristics != null && mCharacteristics.size() > 0) {
+                                    gatt.readCharacteristic(mCharacteristics.get(0));
+                                    indexToRead = 1;
+                                }
                             }
                         }
 
-                        //TODO: Use these two functions
                         @Override
                         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
                             super.onCharacteristicRead(gatt, characteristic, status);
-                            Log.d(TAG, "Char read");
+                            characteristicMap.put(characteristic.getUuid().toString(), characteristic.getValue());
+
+                            if (mCharacteristics.size() > indexToRead) {
+                                gatt.readCharacteristic(mCharacteristics.get(indexToRead));
+                                indexToRead += 1;
+                                Log.d(TAG, "Still reading");
+                                Log.d(TAG, mCharacteristics.toString());
+                            } else if (mDescriptors.size() > 0) {
+                                gatt.readDescriptor(mDescriptors.get(0));
+                                indexToRead = 1;
+                            }
                         }
 
                         @Override
-                        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-                            super.onCharacteristicChanged(gatt, characteristic);
-                            Log.d(TAG, "Char change");
+                        public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+                            super.onDescriptorRead(gatt, descriptor, status);
+                            descriptorMap.put(descriptor.getUuid().toString(), descriptor.getValue());
+
+                            if (mDescriptors.size() > indexToRead) {
+                                gatt.readDescriptor(mDescriptors.get(indexToRead));
+                                indexToRead += 1;
+                            } else {
+                                bulkLog();
+                            }
+                        }
+
+                        private void bulkLog() {
+                            Log.d(TAG, "Characteristics: ");
+                            for (String uuid: characteristicMap.keySet()) {
+                                Log.d(TAG, uuid);
+                                logValue(characteristicMap.get(uuid));
+                            }
+                            Log.d(TAG, "Descriptors: ");
+                            for (String uuid: descriptorMap.keySet()) {
+                                Log.d(TAG, uuid);
+                                logValue(descriptorMap.get(uuid));
+                            }
+                        }
+
+                        private void logValue(byte[] val) {
+                            if (val != null) {
+                                String message = "";
+                                for (byte item: val) {
+                                    message += ", " + item;
+                                }
+                                Log.d(TAG, message);
+                            } else {
+                                Log.d(TAG, "Null value");
+                            }
                         }
                     });
-                } else {
-                    Log.d(TAG, "No devices");
                 }
             }
         };
 
-        long SCAN_PERIOD = 1000; //Time to scan in ms
+        long SCAN_PERIOD = 3000; //Time to scan in ms
         timer.schedule(task, SCAN_PERIOD);
 
         mScanning = true;
