@@ -87,6 +87,7 @@ public class MyFragment extends Fragment{
                         private ArrayList<BluetoothGattDescriptor> mDescriptors = new ArrayList<BluetoothGattDescriptor>();
                         private ArrayList<UUID> mDescriptorUUIDs = new ArrayList<UUID>();
                         private int indexToRead = 0;
+                        private int characteristicFlag = 0;
 
                         private HashMap<String, byte[]> characteristicMap = new HashMap<String, byte[]>();
                         private HashMap<String, byte[]> descriptorMap = new HashMap<String, byte[]>();
@@ -124,11 +125,7 @@ public class MyFragment extends Fragment{
                                         }
                                     }
                                 }
-
-                                if (mCharacteristics != null && mCharacteristics.size() > 0) {
-                                    gatt.readCharacteristic(mCharacteristics.get(0));
-                                    indexToRead = 1;
-                                }
+                                readNextBLE(gatt);
                             }
                         }
 
@@ -137,15 +134,7 @@ public class MyFragment extends Fragment{
                             super.onCharacteristicRead(gatt, characteristic, status);
                             characteristicMap.put(characteristic.getUuid().toString(), characteristic.getValue());
 
-                            if (mCharacteristics.size() > indexToRead) {
-                                gatt.readCharacteristic(mCharacteristics.get(indexToRead));
-                                indexToRead += 1;
-                                Log.d(TAG, "Still reading");
-                                Log.d(TAG, mCharacteristics.toString());
-                            } else if (mDescriptors.size() > 0) {
-                                gatt.readDescriptor(mDescriptors.get(0));
-                                indexToRead = 1;
-                            }
+                            readNextBLE(gatt);
                         }
 
                         @Override
@@ -153,12 +142,42 @@ public class MyFragment extends Fragment{
                             super.onDescriptorRead(gatt, descriptor, status);
                             descriptorMap.put(descriptor.getUuid().toString(), descriptor.getValue());
 
-                            if (mDescriptors.size() > indexToRead) {
-                                gatt.readDescriptor(mDescriptors.get(indexToRead));
-                                indexToRead += 1;
-                            } else {
-                                bulkLog();
+                            readNextBLE(gatt);
+                        }
+
+                        private void readNextBLE(BluetoothGatt gatt) {
+                            if (characteristicFlag == 0) {
+                                indexToRead = readNextCharacteristic(gatt, mCharacteristics, indexToRead);
+                                if (indexToRead == -1) {
+                                    characteristicFlag = 1;
+                                    indexToRead = readNextDescriptor(gatt, mDescriptors, 0);
+                                }
+                            } else if (characteristicFlag == 1) {
+                                indexToRead = readNextDescriptor(gatt, mDescriptors, indexToRead);
+                                if (indexToRead == -1) {
+                                    characteristicFlag = 2;
+                                    bulkLog();
+                                }
+
                             }
+                        }
+
+                        private int readNextCharacteristic(BluetoothGatt gatt, List<BluetoothGattCharacteristic> list, int index) {
+                            while (list.size() > index && !gatt.readCharacteristic(list.get(index))) {
+                                index += 1;
+                                Log.d(TAG, "Failed Read");
+                            }
+
+                            return (list.size() > index) ? index + 1 : -1;
+                        }
+
+                        private int readNextDescriptor(BluetoothGatt gatt, List<BluetoothGattDescriptor> list, int index) {
+                            while (list.size() > index && !gatt.readDescriptor(list.get(index))) {
+                                index += 1;
+                                Log.d(TAG, "Failed Read");
+                            }
+
+                            return (list.size() > index) ? index + 1 : -1;
                         }
 
                         private void bulkLog() {
@@ -190,7 +209,7 @@ public class MyFragment extends Fragment{
             }
         };
 
-        long SCAN_PERIOD = 3000; //Time to scan in ms
+        long SCAN_PERIOD = 10000; //Time to scan in ms
         timer.schedule(task, SCAN_PERIOD);
 
         mScanning = true;
