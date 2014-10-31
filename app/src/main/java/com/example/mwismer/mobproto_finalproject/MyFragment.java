@@ -20,15 +20,19 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Queue;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 
 /**
  * Created by mwismer on 10/23/14.
@@ -82,12 +86,9 @@ public class MyFragment extends Fragment{
                     Log.d(TAG, "No devices");
                 } else {
                     device.connectGatt(getActivity(), false, new BluetoothGattCallback() {
-                        private ArrayList<BluetoothGattCharacteristic> mCharacteristics = new ArrayList<BluetoothGattCharacteristic>();
-                        private ArrayList<UUID> mCharacteristicUUIDs = new ArrayList<UUID>();
-                        private ArrayList<BluetoothGattDescriptor> mDescriptors = new ArrayList<BluetoothGattDescriptor>();
-                        private ArrayList<UUID> mDescriptorUUIDs = new ArrayList<UUID>();
-                        private int indexToRead = 0;
-                        private int characteristicFlag = 0;
+                        private ArrayList<UUID> mUUIDs = new ArrayList<UUID>();
+                        private ArrayBlockingQueue<Runnable> infoToGet = new ArrayBlockingQueue<Runnable>(128);
+                        private boolean success = true;
 
                         private HashMap<String, byte[]> characteristicMap = new HashMap<String, byte[]>();
                         private HashMap<String, byte[]> descriptorMap = new HashMap<String, byte[]>();
@@ -95,7 +96,6 @@ public class MyFragment extends Fragment{
                         @Override
                         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                             super.onConnectionStateChange(gatt, status, newState);
-                            String intentAction;
                             if (newState == BluetoothProfile.STATE_CONNECTED) {
                                 Log.i(TAG, "Connected to GATT server.");
                                 Log.i(TAG, "Attempting to start service discovery:" + gatt.discoverServices());
@@ -105,23 +105,36 @@ public class MyFragment extends Fragment{
                             }
                         }
 
+                        public void updateSuccess(boolean successful) {
+                            success = successful;
+                        }
+
                         @Override
-                        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+                        public void onServicesDiscovered(final BluetoothGatt gatt, int status) {
                             super.onServicesDiscovered(gatt, status);
                             for (BluetoothGattService service: gatt.getServices()) {
                                 List<BluetoothGattCharacteristic> characteristicList = service.getCharacteristics();
-                                for (BluetoothGattCharacteristic characteristic: characteristicList) {
-                                    if (mCharacteristicUUIDs.indexOf(characteristic.getUuid()) == -1) {
-                                        mCharacteristics.add(characteristic);
-                                        mCharacteristicUUIDs.add(characteristic.getUuid());
+                                for (final BluetoothGattCharacteristic characteristic: characteristicList) {
+                                    if (mUUIDs.indexOf(characteristic.getUuid()) == -1) {
+                                        infoToGet.add(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                updateSuccess(gatt.readCharacteristic(characteristic));
+                                            }
+                                        });
+                                        mUUIDs.add(characteristic.getUuid());
                                     }
 
                                     List<BluetoothGattDescriptor> descriptorList = characteristic.getDescriptors();
-                                    for (BluetoothGattDescriptor descriptor: descriptorList) {
-                                        Log.d(TAG, descriptor.toString());
-                                        if (mDescriptorUUIDs.indexOf(descriptor.getUuid()) == -1) {
-                                            mDescriptors.add(descriptor);
-                                            mDescriptorUUIDs.add(descriptor.getUuid());
+                                    for (final BluetoothGattDescriptor descriptor: descriptorList) {
+                                        if (mUUIDs.indexOf(descriptor.getUuid()) == -1) {
+                                            infoToGet.add(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    updateSuccess(gatt.readDescriptor(descriptor));
+                                                }
+                                            });
+                                            mUUIDs.add(descriptor.getUuid());
                                         }
                                     }
                                 }
@@ -146,38 +159,13 @@ public class MyFragment extends Fragment{
                         }
 
                         private void readNextBLE(BluetoothGatt gatt) {
-                            if (characteristicFlag == 0) {
-                                indexToRead = readNextCharacteristic(gatt, mCharacteristics, indexToRead);
-                                if (indexToRead == -1) {
-                                    characteristicFlag = 1;
-                                    indexToRead = readNextDescriptor(gatt, mDescriptors, 0);
-                                }
-                            } else if (characteristicFlag == 1) {
-                                indexToRead = readNextDescriptor(gatt, mDescriptors, indexToRead);
-                                if (indexToRead == -1) {
-                                    characteristicFlag = 2;
-                                    bulkLog();
-                                }
-
+                            while (!infoToGet.isEmpty()) {
+                                infoToGet.poll().run();
+                                if (success) { break; }
                             }
-                        }
-
-                        private int readNextCharacteristic(BluetoothGatt gatt, List<BluetoothGattCharacteristic> list, int index) {
-                            while (list.size() > index && !gatt.readCharacteristic(list.get(index))) {
-                                index += 1;
-                                Log.d(TAG, "Failed Read");
+                            if (infoToGet.isEmpty()) {
+                                bulkLog();
                             }
-
-                            return (list.size() > index) ? index + 1 : -1;
-                        }
-
-                        private int readNextDescriptor(BluetoothGatt gatt, List<BluetoothGattDescriptor> list, int index) {
-                            while (list.size() > index && !gatt.readDescriptor(list.get(index))) {
-                                index += 1;
-                                Log.d(TAG, "Failed Read");
-                            }
-
-                            return (list.size() > index) ? index + 1 : -1;
                         }
 
                         private void bulkLog() {
@@ -195,11 +183,7 @@ public class MyFragment extends Fragment{
 
                         private void logValue(byte[] val) {
                             if (val != null) {
-                                String message = "";
-                                for (byte item: val) {
-                                    message += ", " + item;
-                                }
-                                Log.d(TAG, message);
+                                Log.d(TAG, Arrays.toString(val));
                             } else {
                                 Log.d(TAG, "Null value");
                             }
