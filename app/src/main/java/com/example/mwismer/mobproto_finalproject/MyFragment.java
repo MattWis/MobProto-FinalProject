@@ -18,10 +18,8 @@ import java.util.TimerTask;
 /**
  * Created by mwismer on 10/23/14.
  */
-public class MyFragment extends Fragment{
-    private BluetoothDevice device = null;
+public class MyFragment extends Fragment {
     private String TAG = "MyFragment";
-    private BluetoothAdapter mBLEAdapter;
 
     public MyFragment() {
     }
@@ -30,52 +28,15 @@ public class MyFragment extends Fragment{
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_my, container, false);
-        final BluetoothManager bluetoothManager =
-                (BluetoothManager) getActivity().getSystemService(Context.BLUETOOTH_SERVICE);
-        mBLEAdapter = bluetoothManager.getAdapter();
-        if (mBLEAdapter == null || !mBLEAdapter.isEnabled()) {
-            Log.d(TAG, "Enabling Bluetooth");
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            getActivity().startActivityForResult(enableBtIntent, 20);
-        }
 
-        scanBLE();
+        new BLEScanner(getActivity()).scanBLE();
 
         return rootView;
     }
 
-    private boolean mScanning = false;
-    private BluetoothAdapter.LeScanCallback mBLECallback = new BluetoothAdapter.LeScanCallback() {
-        @Override
-        public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-            if (device == null || !bluetoothDevice.equals(device)) {
-                Log.d(TAG, "Resetting device");
-                device = bluetoothDevice;
-            }
-        }
-    };
+
 
     private void scanBLE() {
-        Timer timer = new Timer();
-        TimerTask task = new TimerTask() {
-            @Override
-            public void run() {
-                mScanning = false;
-                mBLEAdapter.stopLeScan(mBLECallback);
-                Log.d(TAG, "BLE Scan finished");
-                if (device == null) {
-                    Log.d(TAG, "No devices");
-                } else {
-                    device.connectGatt(getActivity(), false, new BLEFinderCallback(device));
-                }
-            }
-        };
 
-        long SCAN_PERIOD = 10000; //Time to scan in ms
-        timer.schedule(task, SCAN_PERIOD);
-
-        mScanning = true;
-        mBLEAdapter.startLeScan(mBLECallback);
-        Log.d(TAG, "BLE Scan Started");
     }
 }
