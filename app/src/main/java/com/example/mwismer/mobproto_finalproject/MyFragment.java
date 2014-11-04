@@ -66,7 +66,7 @@ public class MyFragment extends Fragment{
                 if (device == null) {
                     Log.d(TAG, "No devices");
                 } else {
-                    device.connectGatt(getActivity(), false, new BLEFinderCallback());
+                    device.connectGatt(getActivity(), false, new BLEFinderCallback(device));
                 }
             }
         };

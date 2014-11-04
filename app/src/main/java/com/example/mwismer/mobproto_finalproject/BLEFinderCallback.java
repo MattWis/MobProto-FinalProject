@@ -1,5 +1,6 @@
 package com.example.mwismer.mobproto_finalproject;
 
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -15,6 +16,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import com.firebase.client.Firebase;
+
 /**
  * Created by mwismer on 11/3/14.
  */
@@ -23,9 +26,14 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     private ArrayBlockingQueue<Runnable> infoToGet = new ArrayBlockingQueue<Runnable>(128);
     private boolean success = true;
     private String TAG = "BLEFinderCallback";
+    private String deviceAddress;
 
     private HashMap<String, byte[]> characteristicMap = new HashMap<String, byte[]>();
     private HashMap<String, byte[]> descriptorMap = new HashMap<String, byte[]>();
+
+    public BLEFinderCallback(BluetoothDevice device) {
+        deviceAddress = device.getAddress();
+    }
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -39,9 +47,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
         }
     }
 
-    public void updateSuccess(boolean successful) {
-        success = successful;
-    }
+    public void updateSuccess(boolean successful) { success = successful; }
 
     @Override
     public void onServicesDiscovered(final BluetoothGatt gatt, int status) {
@@ -98,8 +104,14 @@ public class BLEFinderCallback extends BluetoothGattCallback {
             if (success) { break; }
         }
         if (infoToGet.isEmpty()) {
+            pushInfoToFirebase();
             bulkLog();
         }
+    }
+
+    private void pushInfoToFirebase() {
+        Firebase currentDevice = new Firebase("https://mobproto-final.firebaseio.com/").child("devices").child(deviceAddress);
+        //TODO: Put data from characteristicMap and deviceMap into the firebase at this child node
     }
 
     private void bulkLog() {
