@@ -9,8 +9,10 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.util.Log;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -28,8 +30,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     private String TAG = "BLEFinderCallback";
     private String deviceAddress;
 
-    private HashMap<String, byte[]> characteristicMap = new HashMap<String, byte[]>();
-    private HashMap<String, byte[]> descriptorMap = new HashMap<String, byte[]>();
+    private HashMap<String, byte[]> valueMap = new HashMap<String, byte[]>();
 
     public BLEFinderCallback(BluetoothDevice device) {
         deviceAddress = device.getAddress();
@@ -85,7 +86,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     @Override
     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         super.onCharacteristicRead(gatt, characteristic, status);
-        characteristicMap.put(characteristic.getUuid().toString(), characteristic.getValue());
+        valueMap.put(characteristic.getUuid().toString(), characteristic.getValue());
 
         readNextBLE(gatt);
     }
@@ -93,7 +94,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     @Override
     public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
         super.onDescriptorRead(gatt, descriptor, status);
-        descriptorMap.put(descriptor.getUuid().toString(), descriptor.getValue());
+        valueMap.put(descriptor.getUuid().toString(), descriptor.getValue());
 
         readNextBLE(gatt);
     }
@@ -110,20 +111,16 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     }
 
     private void pushInfoToFirebase() {
-        Firebase currentDevice = new Firebase("https://mobproto-final.firebaseio.com/").child("devices").child(deviceAddress);
-        //TODO: Put data from characteristicMap and deviceMap into the firebase at this child node
+        String timeStamp = new SimpleDateFormat("yyyy:MM:dd-HH:mm:ss").format(new Date());
+        Firebase currentDevice = new Firebase("https://mobproto-final.firebaseio.com/").child("devices").child(deviceAddress).child(timeStamp);
+        currentDevice.setValue(valueMap);
     }
 
     private void bulkLog() {
-        Log.d(TAG, "Characteristics: ");
-        for (String uuid: characteristicMap.keySet()) {
+        Log.d(TAG, "Logging BLE Data: ");
+        for (String uuid: valueMap.keySet()) {
             Log.d(TAG, uuid);
-            logValue(characteristicMap.get(uuid));
-        }
-        Log.d(TAG, "Descriptors: ");
-        for (String uuid: descriptorMap.keySet()) {
-            Log.d(TAG, uuid);
-            logValue(descriptorMap.get(uuid));
+            logValue(valueMap.get(uuid));
         }
     }
 
