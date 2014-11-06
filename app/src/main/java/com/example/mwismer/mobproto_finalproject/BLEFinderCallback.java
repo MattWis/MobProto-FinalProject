@@ -98,6 +98,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
         super.onCharacteristicRead(gatt, characteristic, status);
         characteristicMap.put(characteristic.getUuid().toString(), characteristic.getValue());
 
+        // Only read next bit of data after current request is completed
         readNextBLE(gatt);
     }
 
@@ -107,6 +108,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
         super.onDescriptorRead(gatt, descriptor, status);
         descriptorMap.put(descriptor.getUuid().toString(), descriptor.getValue());
 
+        // Only read next bit of data after current request is completed
         readNextBLE(gatt);
     }
 
