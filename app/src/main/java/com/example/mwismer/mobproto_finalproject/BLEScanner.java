@@ -22,10 +22,10 @@ public final class BLEScanner {
     private BluetoothAdapter.LeScanCallback mBLECallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-            if (device == null || !bluetoothDevice.equals(device)) {
-                Log.d(TAG, "Resetting device");
-                device = bluetoothDevice;
-            }
+        if (device == null || !bluetoothDevice.equals(device)) {
+            Log.d(TAG, "Resetting device");
+            device = bluetoothDevice;
+        }
         }
     };
 
