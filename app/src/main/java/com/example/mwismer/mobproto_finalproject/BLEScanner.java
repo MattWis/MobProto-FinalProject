@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
+import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -16,16 +17,19 @@ import java.util.TimerTask;
  */
 public final class BLEScanner {
 
+    public HashMap<String, Object> whiteList;
     private BluetoothDevice device = null;
     private Activity activity;
     private static String TAG = "BLEScanner";
     private BluetoothAdapter.LeScanCallback mBLECallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-        if (device == null || !bluetoothDevice.equals(device)) {
-            Log.d(TAG, "Resetting device");
-            device = bluetoothDevice;
-        }
+            if (device == null || !bluetoothDevice.equals(device)) {
+                if (whiteList.containsKey(bluetoothDevice.getAddress())) {
+                    Log.d(TAG, "Resetting device");
+                    device = bluetoothDevice;
+                }
+            }
         }
     };
 
@@ -41,8 +45,8 @@ public final class BLEScanner {
             activity.startActivityForResult(enableBtIntent, 20);
         }
 
-        Timer timer = new Timer();
-        TimerTask task = new TimerTask() {
+        final Timer timer = new Timer();
+        final TimerTask endScan = new TimerTask() {
             @Override
             public void run() {
                 mBLEAdapter.stopLeScan(mBLECallback);
@@ -55,10 +59,21 @@ public final class BLEScanner {
             }
         };
 
-        long SCAN_PERIOD = 10000; //Time to scan in ms
-        timer.schedule(task, SCAN_PERIOD);
+        final TimerTask startScan = new TimerTask() {
+            @Override
+            public void run() {
+                if (whiteList != null) {
+                    long SCAN_PERIOD = 10000; //Time to scan in ms
+                    timer.schedule(endScan, SCAN_PERIOD);
 
-        mBLEAdapter.startLeScan(mBLECallback);
-        Log.d(TAG, "BLE Scan Started");
+                    mBLEAdapter.startLeScan(mBLECallback);
+                    Log.d(TAG, "BLE Scan Started");
+                }
+            }
+        };
+
+        new FirebaseUtils().getWhiteList(this);
+        long FIREBASE_PERIOD = 5000; //Time to receive whiteList from Firebase
+        timer.schedule(startScan, FIREBASE_PERIOD);
     }
 }
