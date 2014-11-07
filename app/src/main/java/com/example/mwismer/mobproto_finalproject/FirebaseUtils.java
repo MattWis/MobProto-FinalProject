@@ -16,6 +16,7 @@ import java.util.Map;
  * Created by mwismer on 11/6/14.
  */
 public class FirebaseUtils {
+    private String TAG = "FirebaseUtils";
     private String url = "https://mobproto-final.firebaseio.com/";
 
     public void pushUUIDInfo(String deviceAddress, Map<String, byte[]> valueMap) {
@@ -29,12 +30,12 @@ public class FirebaseUtils {
         whiteList.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                Log.d("FUCK", dataSnapshot.getValue().toString());
+                Log.d(TAG, dataSnapshot.getValue().toString());
                 Object data = dataSnapshot.getValue();
                 if (data.getClass().toString().equals("class java.util.HashMap")) {
                     scanner.whiteList = (HashMap<String, Object>) data;
                 } else {
-                    Log.d("FUCK", data.getClass().toString());
+                    Log.d(TAG, data.getClass().toString());
                 }
             }
 
