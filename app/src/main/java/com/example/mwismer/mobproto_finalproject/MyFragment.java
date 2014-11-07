@@ -1,19 +1,10 @@
 package com.example.mwismer.mobproto_finalproject;
 
 import android.app.Fragment;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
-import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * Created by mwismer on 10/23/14.
