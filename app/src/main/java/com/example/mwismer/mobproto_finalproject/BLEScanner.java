@@ -50,7 +50,7 @@ public final class BLEScanner {
                 if (device == null) {
                     Log.d(TAG, "No devices");
                 } else {
-                    device.connectGatt(activity1, false, new BLEFinderCallback(device));
+                    device.connectGatt(activity, false, new BLEFinderCallback(device));
                 }
             }
         };

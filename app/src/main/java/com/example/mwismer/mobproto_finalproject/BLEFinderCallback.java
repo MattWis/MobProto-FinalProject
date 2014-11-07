@@ -32,9 +32,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
 
     private HashMap<String, byte[]> valueMap = new HashMap<String, byte[]>();
 
-    public BLEFinderCallback(BluetoothDevice device) {
-        deviceAddress = device.getAddress();
-    }
+    public BLEFinderCallback(BluetoothDevice device) { deviceAddress = device.getAddress(); }
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -105,15 +103,9 @@ public class BLEFinderCallback extends BluetoothGattCallback {
             if (success) { break; }
         }
         if (infoToGet.isEmpty()) {
-            pushInfoToFirebase();
+            new FirebaseUtils().pushUUIDInfo(deviceAddress, valueMap);
             bulkLog();
         }
-    }
-
-    private void pushInfoToFirebase() {
-        String timeStamp = new SimpleDateFormat("yyyy:MM:dd-HH:mm:ss").format(new Date());
-        Firebase currentDevice = new Firebase("https://mobproto-final.firebaseio.com/").child("devices").child(deviceAddress).child(timeStamp);
-        currentDevice.setValue(valueMap);
     }
 
     private void bulkLog() {

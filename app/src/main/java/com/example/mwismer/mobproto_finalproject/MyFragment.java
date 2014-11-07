@@ -33,10 +33,4 @@ public class MyFragment extends Fragment {
 
         return rootView;
     }
-
-
-
-    private void scanBLE() {
-
-    }
 }
