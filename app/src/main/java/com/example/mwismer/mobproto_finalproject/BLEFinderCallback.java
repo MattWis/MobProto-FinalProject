@@ -1,5 +1,6 @@
 package com.example.mwismer.mobproto_finalproject;
 
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -8,12 +9,16 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.util.Log;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
+
+import com.firebase.client.Firebase;
 
 /**
  * Created by mwismer on 11/3/14.
@@ -24,9 +29,11 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     private ArrayBlockingQueue<Runnable> infoToGet = new ArrayBlockingQueue<Runnable>(128);
     private boolean success = true;
     private String TAG = "BLEFinderCallback";
+    private String deviceAddress;
 
-    private HashMap<String, byte[]> characteristicMap = new HashMap<String, byte[]>();
-    private HashMap<String, byte[]> descriptorMap = new HashMap<String, byte[]>();
+    private HashMap<String, byte[]> valueMap = new HashMap<String, byte[]>();
+
+    public BLEFinderCallback(BluetoothDevice device) { deviceAddress = device.getAddress(); }
 
     // Client connection state has changed
     @Override
@@ -41,9 +48,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
         }
     }
 
-    public void updateSuccess(boolean successful) {
-        success = successful;
-    }
+    public void updateSuccess(boolean successful) { success = successful; }
 
     // Server's list of (remote services, characteristics and descriptors) for the remote device (server) has been updated
     @Override
@@ -96,7 +101,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     @Override
     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         super.onCharacteristicRead(gatt, characteristic, status);
-        characteristicMap.put(characteristic.getUuid().toString(), characteristic.getValue());
+        valueMap.put(characteristic.getUuid().toString(), characteristic.getValue());
 
         // Only read next bit of data after current request is completed
         readNextBLE(gatt);
@@ -106,7 +111,7 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     @Override
     public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
         super.onDescriptorRead(gatt, descriptor, status);
-        descriptorMap.put(descriptor.getUuid().toString(), descriptor.getValue());
+        valueMap.put(descriptor.getUuid().toString(), descriptor.getValue());
 
         // Only read next bit of data after current request is completed
         readNextBLE(gatt);
@@ -119,21 +124,17 @@ public class BLEFinderCallback extends BluetoothGattCallback {
             if (success) { break; }
         }
         if (infoToGet.isEmpty()) {
+            new FirebaseUtils().pushUUIDInfo(deviceAddress, valueMap);
             bulkLog();
         }
     }
 
     // Log all of the new information
     private void bulkLog() {
-        Log.d(TAG, "Characteristics: ");
-        for (String uuid: characteristicMap.keySet()) {
+        Log.d(TAG, "Logging BLE Data: ");
+        for (String uuid: valueMap.keySet()) {
             Log.d(TAG, uuid);
-            logValue(characteristicMap.get(uuid));
-        }
-        Log.d(TAG, "Descriptors: ");
-        for (String uuid: descriptorMap.keySet()) {
-            Log.d(TAG, uuid);
-            logValue(descriptorMap.get(uuid));
+            logValue(valueMap.get(uuid));
         }
     }
 
