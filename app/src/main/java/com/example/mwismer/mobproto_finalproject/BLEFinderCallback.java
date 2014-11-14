@@ -50,47 +50,56 @@ public class BLEFinderCallback extends BluetoothGattCallback {
     @Override
     public void onServicesDiscovered(final BluetoothGatt gatt, int status) {
         super.onServicesDiscovered(gatt, status);
-        
-        // Check each service within device...
-        for (BluetoothGattService service: gatt.getServices()) {
-            // List of characteristics in service
-            List<BluetoothGattCharacteristic> characteristicList = service.getCharacteristics();
-            
-            // Check each characteristic within each service...
-            for (final BluetoothGattCharacteristic characteristic: characteristicList) {
-                if (mUUIDs.indexOf(characteristic.getUuid()) == -1) { // New characteristic! (not already in our list)
-                    infoToGet.add(new Runnable() {
-                        @Override
-                        public void run() {
-                            // Request specific characteristic relating to newly discovered or updated data
-                            updateSuccess(gatt.readCharacteristic(characteristic));
-                        }
-                    });
-                    // Add characteristic ID to our list
-                    mUUIDs.add(characteristic.getUuid());
-                }
 
-                // List of descriptors in characteristic
-                List<BluetoothGattDescriptor> descriptorList = characteristic.getDescriptors();
-                // Check each descriptor within each characteristic...
-                for (final BluetoothGattDescriptor descriptor: descriptorList) {
-                    if (mUUIDs.indexOf(descriptor.getUuid()) == -1) { // New descriptor! (not already in our list)
-                        infoToGet.add(new Runnable() {
-                            @Override
-                            public void run() {
-                                // Request specific descriptor relating to newly discovered or updated data
-                                updateSuccess(gatt.readDescriptor(descriptor));
-                            }
-                        });
-                        // Add descriptor ID to our list
-                        mUUIDs.add(descriptor.getUuid());
-                    }
-                }
-            }
-            
-            // Execute read requests before moving on to next service
-            readNextBLE(gatt);
+        // Check each service within device...
+        List<BluetoothGattCharacteristic> characteristicList = new ArrayList<BluetoothGattCharacteristic>();
+          for (BluetoothGattService service: gatt.getServices()) {
+            // List of characteristics in service
+            characteristicList.addAll(service.getCharacteristics());
         }
+
+        // Check each characteristic within each service...
+        List<BluetoothGattDescriptor> descriptorList = new ArrayList<BluetoothGattDescriptor>();
+        for (final BluetoothGattCharacteristic characteristic: characteristicList) {
+            if (mUUIDs.indexOf(characteristic.getUuid()) == -1) { // New characteristic! (not already in our list)
+                infoToGet.add(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Request specific characteristic relating to newly discovered or updated data
+                        updateSuccess(gatt.readCharacteristic(characteristic));
+                    }
+                });
+                // Add characteristic ID to our list
+                mUUIDs.add(characteristic.getUuid());
+            }
+            // List of descriptors in characteristic
+            descriptorList.addAll(characteristic.getDescriptors());
+        }
+
+
+        // Check each descriptor within each characteristic...
+        for (final BluetoothGattDescriptor descriptor: descriptorList) {
+            if (mUUIDs.indexOf(descriptor.getUuid()) == -1) { // New descriptor! (not already in our list)
+                infoToGet.add(new Runnable() {
+                    @Override
+                    public void run() {
+                        // Request specific descriptor relating to newly discovered or updated data
+                        updateSuccess(gatt.readDescriptor(descriptor));
+                    }
+                });
+               // Add descriptor ID to our list
+                mUUIDs.add(descriptor.getUuid());
+            }
+        }
+
+        try {
+            infoToGet = new TIConfig().getServiceWriters(this, gatt, characteristicList, descriptorList, infoToGet);
+        } catch (InterruptedException e) {
+            Log.d("TAG", "well, shit");
+        }
+        // Execute read requests before moving on to next service
+        readNextBLE(gatt);
+
     }
 
     // Returns response to characteristic read request
@@ -110,6 +119,20 @@ public class BLEFinderCallback extends BluetoothGattCallback {
         valueMap.put(descriptor.getUuid().toString(), descriptor.getValue());
 
         // Only read next bit of data after current request is completed
+        readNextBLE(gatt);
+    }
+
+    @Override
+    public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        super.onCharacteristicWrite(gatt, characteristic, status);
+
+        readNextBLE(gatt);
+    }
+
+    @Override
+    public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+        super.onDescriptorWrite(gatt, descriptor, status);
+
         readNextBLE(gatt);
     }
 
@@ -142,4 +165,3 @@ public class BLEFinderCallback extends BluetoothGattCallback {
         }
     }
 }
-
