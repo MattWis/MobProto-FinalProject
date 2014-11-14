@@ -22,27 +22,12 @@ public class FirebaseUtils {
     public void pushUUIDInfo(String deviceAddress, Map<String, byte[]> valueMap) {
         String timeStamp = new SimpleDateFormat("yyyy:MM:dd-HH:mm:ss").format(new Date());
         Firebase currentDevice = new Firebase(url).child("devices").child(deviceAddress).child(timeStamp);
-        currentDevice.setValue(valueMap);
+        currentDevice.child("values").setValue(valueMap);
+        currentDevice.child("UUIDs").setValue(valueMap.keySet());
     }
 
-    public void getWhiteList (final BLEScanner scanner) {
-        Firebase whiteList = new Firebase(url).child("whiteList");
-        whiteList.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                Log.d(TAG, dataSnapshot.getValue().toString());
-                Object data = dataSnapshot.getValue();
-                if (data.getClass().toString().equals("class java.util.HashMap")) {
-                    scanner.whiteList = (HashMap<String, Object>) data;
-                } else {
-                    Log.d(TAG, data.getClass().toString());
-                }
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-
-            }
-        });
+    public void getWhiteList(ValueEventListener listener) {
+        final Firebase whiteList = new Firebase(url).child("whiteList");
+        whiteList.addListenerForSingleValueEvent(listener);
     }
 }

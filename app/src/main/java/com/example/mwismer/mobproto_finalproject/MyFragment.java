@@ -1,7 +1,9 @@
 package com.example.mwismer.mobproto_finalproject;
 
 import android.app.Fragment;
+import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,6 +13,7 @@ import android.view.ViewGroup;
  */
 public class MyFragment extends Fragment {
     private String TAG = "MyFragment";
+    BLEScanner scanner;
 
     public MyFragment() {
     }
@@ -20,8 +23,14 @@ public class MyFragment extends Fragment {
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_my, container, false);
 
-        new BLEScanner(getActivity()).scanBLE();
+        scanner = new BLEScanner(this);
+        scanner.scanBLE();
 
         return rootView;
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        scanner.onActivityResult(requestCode, resultCode, data);
     }
 }
