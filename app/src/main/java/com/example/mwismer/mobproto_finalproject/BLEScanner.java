@@ -76,7 +76,8 @@ public final class BLEScanner implements PreferenceManager.OnActivityResultListe
                 Log.d(TAG, "WhiteList: " + dataSnapshot.getValue().toString());
                 Object data = dataSnapshot.getValue();
                 if (data.getClass().toString().equals("class java.util.HashMap")) {
-                    startScan((HashMap<String, Object>) data);
+                    whiteList = (HashMap<String, Object>) data;
+                    startScan();
                 } else {
                     Log.d(TAG, data.getClass().toString());
                 }
@@ -89,7 +90,7 @@ public final class BLEScanner implements PreferenceManager.OnActivityResultListe
     }
 
 
-    public void startScan(HashMap<String, Object> whiteList) {
+    public void startScan() {
         if (whiteList == null) {
             Log.d(TAG, "This function doesn't do anything when called with null argument");
         } else {
