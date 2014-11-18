@@ -25,4 +25,9 @@ public class FirebaseUtils {
         currentDevice.child("values").setValue(valueMap);
         currentDevice.child("UUIDs").setValue(valueMap.keySet());
     }
+
+    public void getNodeList(ValueEventListener listener) {
+        final Firebase nodeList = new Firebase(url).child("nodes");
+        nodeList.addListenerForSingleValueEvent(listener);
+    }
 }
