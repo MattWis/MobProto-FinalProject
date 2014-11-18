@@ -24,7 +24,7 @@ public class MyFragment extends Fragment {
         View rootView = inflater.inflate(R.layout.fragment_my, container, false);
 
         scanner = new BLEScanner(this);
-        scanner.scanBLE();
+        scanner.scanBLE("78:A5:04:8C:25:DF");
 
         return rootView;
     }

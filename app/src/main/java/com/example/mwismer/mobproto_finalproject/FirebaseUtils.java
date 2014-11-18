@@ -25,9 +25,4 @@ public class FirebaseUtils {
         currentDevice.child("values").setValue(valueMap);
         currentDevice.child("UUIDs").setValue(valueMap.keySet());
     }
-
-    public void getWhiteList(ValueEventListener listener) {
-        final Firebase whiteList = new Firebase(url).child("whiteList");
-        whiteList.addListenerForSingleValueEvent(listener);
-    }
 }

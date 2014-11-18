@@ -25,20 +25,19 @@ import java.util.TimerTask;
 public final class BLEScanner implements PreferenceManager.OnActivityResultListener{
 
     private static int ENABLE_BLE = 21305;
-    private HashMap<String, Object> whiteList;
+    private String deviceName;
     private BluetoothDevice device = null;
     private BluetoothAdapter mBLEAdapter = null;
     private Activity activity;
     private Fragment fragment;
     private static String TAG = "BLEScanner";
+
     private BluetoothAdapter.LeScanCallback mBLECallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {
-            if (device == null || !bluetoothDevice.equals(device)) {
-                if (whiteList == null || whiteList.containsKey(bluetoothDevice.getAddress())) {
-                    Log.d(TAG, "Resetting device");
-                    device = bluetoothDevice;
-                }
+            if (device == null && bluetoothDevice.getAddress().equals(deviceName)) {
+                Log.d(TAG, "Setting device");
+                device = bluetoothDevice;
             }
         }
     };
@@ -61,66 +60,42 @@ public final class BLEScanner implements PreferenceManager.OnActivityResultListe
         fragment.startActivityForResult(enableBtIntent, ENABLE_BLE);
     }
 
-    public void scanBLE() {
+    public void scanBLE(String nameOfDevice) {
+        deviceName = nameOfDevice;
         if (checkBLEEnabled()) {
-            scanBLEUnsafe();
+            startScan();
         } else {
             enableBLE();
         }
     }
 
-    public void scanBLEUnsafe() {
-        new FirebaseUtils().getWhiteList(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                Log.d(TAG, "WhiteList: " + dataSnapshot.getValue().toString());
-                Object data = dataSnapshot.getValue();
-                if (data.getClass().toString().equals("class java.util.HashMap")) {
-                    whiteList = (HashMap<String, Object>) data;
-                    startScan();
-                } else {
-                    Log.d(TAG, data.getClass().toString());
-                }
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-            }
-        });
-    }
-
-
     public void startScan() {
-        if (whiteList == null) {
-            Log.d(TAG, "This function doesn't do anything when called with null argument");
-        } else {
-            final Timer timer = new Timer();
-            final TimerTask endScan = new TimerTask() {
-                @Override
-                public void run() {
-                    mBLEAdapter.stopLeScan(mBLECallback);
-                    Log.d(TAG, "BLE Scan finished");
-                    if (device == null) {
-                        Log.d(TAG, "No devices");
-                    } else {
-                        device.connectGatt(activity, false, new BLEFinderCallback(device));
-                    }
+        final Timer timer = new Timer();
+        final TimerTask endScan = new TimerTask() {
+            @Override
+            public void run() {
+                mBLEAdapter.stopLeScan(mBLECallback);
+                Log.d(TAG, "BLE Scan finished");
+                if (device == null) {
+                    Log.d(TAG, "No devices");
+                } else {
+                    device.connectGatt(activity, false, new BLEFinderCallback(device));
                 }
-            };
+            }
+        };
 
-            long SCAN_PERIOD = 10000; //Time to scan in ms
-            timer.schedule(endScan, SCAN_PERIOD);
+        long SCAN_PERIOD = 10000; //Time to scan in ms
+        timer.schedule(endScan, SCAN_PERIOD);
 
-            mBLEAdapter.startLeScan(mBLECallback);
-            Log.d(TAG, "BLE Scan Started");
-        }
+        mBLEAdapter.startLeScan(mBLECallback);
+        Log.d(TAG, "BLE Scan Started");
     }
 
     @Override
     public boolean onActivityResult(int requestCode, int resultCode, Intent intent) {
         if (requestCode == ENABLE_BLE) {
             Log.d(TAG, "BLE Enabled. Trying to scan again");
-            scanBLE();
+            scanBLE(deviceName);
             return true;
         }
         return false;
